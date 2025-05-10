@@ -6,6 +6,9 @@ reset_on_extinction = true
 no_fitness_termination = true
 
 [CustomGenome]
+structural_mutation_surer = true
+single_structural_mutation = false
+
 # Node activation options
 activation_default = sigmoid
 activation_mutate_rate = 0.0
@@ -80,8 +83,6 @@ mutate_max_grad_norm = 0.01
 mutate_vf_coef = 0.05
 mutate_activation_fn = 0.2
 mutate_lr_schedule = 0.05
-structural_mutation_surer = true
-single_structural_mutation = false
 
 [DefaultSpeciesSet]
 compatibility_threshold = 4
