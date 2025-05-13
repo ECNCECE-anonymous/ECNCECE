@@ -16,10 +16,6 @@ def show_layered_graph(G, label=None, save=False, show=False, filename="Graph.pn
         for v in nodes:
             G.nodes[v]['subset'] = l
     pos = nx.multipartite_layout(G)
-
-    #nx.draw_networkx_nodes(G, pos, node_size=node_size)
-    #nx.draw_networkx_edges(G, pos, node_size=node_size, alpha=0.1)
-    #plt.show()
     print('# of input features:', ffnn.in_features)
     print('# of output features:', ffnn.out_features)
     for layer in L:
@@ -28,56 +24,17 @@ def show_layered_graph(G, label=None, save=False, show=False, filename="Graph.pn
     for preds in ffnn.layer_preds:
         print(len(preds))
     labels = nx.get_node_attributes(G, label)
-    #print(labels)
-    #nx.draw_networkx(G, pos)#, labels=labels, with_labels=True)
     nx.draw_networkx(G, pos, with_labels=False, node_size=50, width=0.1)
-    '''
-    nx.draw(G, pos)
-    node_labels = {key: round(val, 2) for key, val in nx.get_node_attributes(G, 'bias_critic').items()}
-    #node_labels = nx.get_node_attributes(G,'bias')
-    nx.draw_networkx_labels(G, pos, labels = node_labels)
-    edge_labels = {key: round(val, 2) for key, val in nx.get_edge_attributes(G, 'weight_critic').items()}
-    #edge_labels = nx.get_edge_attributes(G,'weight')
-    nx.draw_networkx_edge_labels(G, pos, edge_labels = edge_labels)
-    '''
     if save:
         plt.savefig(filename, format="PNG")
     if show:
         plt.show()
 
-def check_graph1(G):
-    # remove extra input nodes
-    for n in list(G.nodes):
-        if n > 0 and not G.in_edges(n):
-            G.remove_node(n)
-    return G
-
-def check_graph2(G):
-    # remove extra output nodes
-    for n in list(G.nodes):
-        if n > 5 and not G.out_edges(n):
-            #print("check2 here: ", n)
-            G.remove_node(n)
-            return G, False
-            
-    #show_layered_graph(G)
-    return G, True
-
-def remove_extra_outputs(G):
-    # remove extra output nodes
-    G, good = check_graph2(G)
-    while not good:
-        #show_layered_graph(G)
-        G, good = check_graph2(G)
-    return G
 
 def mlp_graph(net_arch = [27, 8, 8, 5], direct=False):
-
     # Initialize directed graph
     G = nx.DiGraph()
-
     layers = []
-
     # add nodes to graphs
     s1 = 0
     for i, layer_size in enumerate(net_arch):
@@ -91,7 +48,6 @@ def mlp_graph(net_arch = [27, 8, 8, 5], direct=False):
     if not direct:
         # add connections
         for l1, l2 in zip(layers[:-1], layers[1:]):
-            #print(l1)
             for i in l1:
                 for j in l2:
                     G.add_edge(i, j)
@@ -111,110 +67,12 @@ def mlp_graph(net_arch = [27, 8, 8, 5], direct=False):
 
     return G
 
-
-def ffnn2graph_lamarckian(G, params_actor, params_critic):
-    ffnn = fwd(G, bias=False)
-
-    #G_copy = nx.DiGraph()
-
-    #G_copy.add_nodes_from(G)
-    #G_copy.add_edges_from(G.edges)
-
-    G_copy = copy.deepcopy(G)
-    G_critic = copy.deepcopy(G)
-    for i in range(ffnn.out_features-1):
-        G_critic.remove_node(i)
-
-    ffnn_critic = fwd(G_critic, bias=False)
-
-    #print(params.values())
-    #print("ffnn2graph check")
-
-    #print(ffnn.L[1:])
-    #print()
-    last_layer = False
-    for W_, W_critic, layer, preds in zip(params_actor.values(), params_critic.values(), ffnn.L[1:], ffnn.layer_preds):
-        #print(W_["kernel"])
-        W = W_["kernel"]
-        Wc = W_critic["kernel"]
-        b = W_["bias"]
-        bc = W_critic["bias"]
-        #print()
-        #print("W", len(W), len(W[0]))
-        #print("preds", len(preds))
-        #print("layer", len(layer))
-        #print("preds: ", preds)
-        #print("layer: ", layer)
-        #for i in range(len(preds)):
-        '''
-        print(layer, ffnn.sinks)
-        print("actor weights: ", W)
-        print("critic weights: ", Wc)
-        print("actor bias: ", b)
-        print("critic bias: ", bc)
-        '''
-        if layer == ffnn.sinks:
-            last_layer = True
-            #print("last layer")
-            #print("bias: ", bc[0].item())
-            G_copy.nodes[ffnn.out_features-1]["bias_critic"] = bc[0].item()
-            print("preds: ", ffnn_critic.layer_preds[-1])
-            print("masks: ", ffnn.masks)
-            for i in range(len(ffnn_critic.layer_preds[-1])):
-                u = ffnn_critic.layer_preds[-1][i]
-                #print(u, ffnn.out_features-1,Wc[i,0].item())
-                try:
-                    G_copy[u][ffnn.out_features-1]['weight_critic'] = Wc[i,0].item()
-                except:
-                    print("actor weights: ", W)
-                    print("critic weights: ", Wc)
-                    print("actor bias: ", b)
-                    print("critic bias: ", bc)
-                    print(u, ffnn.out_features-1, Wc[i,0].item())
-                    print(G_copy.has_edge(u,ffnn.out_features-1))
-                    show_layered_graph(G_copy)
-
-        for j in range(len(layer)):
-            v = layer[j]
-            G_copy.nodes[v]["bias"] = b[j].item()
-            #print(b[j].item())
-            if not last_layer:
-                G_copy.nodes[v]["bias_critic"] = bc[j].item()
-            #u = preds[i]
-            #print(G.out_edges(u))
-            #print(ffnn.dag.out_edges(u))
-            for i in range(len(preds)):
-            #for j in range(len(layer)):
-                u = preds[i]
-                #v = layer[j]
-                #print(v)
-                weight = W[i,j].item()
-                if weight != 0:
-                    #G_new.add_edge(u, v)#, weight=weight)
-                    if not G_copy.has_edge(u, v):
-                        print("G has no edge: ", u, v)
-                    G_copy[u][v]['weight'] = weight
-                    if not last_layer:
-                        weight_c = Wc[i,j].item()
-                        #print(weight_c)
-                        G_copy[u][v]['weight_critic'] = weight_c
-
-    #show_layered_graph(G_copy)
-    return G_copy
-
 def ffnn2graph(G, params):
     ffnn = fwd(G, bias=False)
-
-    #G_copy = nx.DiGraph()
-
-    #G_copy.add_nodes_from(G)
-    #G_copy.add_edges_from(G.edges)
-
     G_copy = copy.deepcopy(G)
 
     last_layer = False
     for W_, layer, preds in zip(params.values(), ffnn.L[1:], ffnn.layer_preds):
-        #print(W_["kernel"])
         W = W_["kernel"]
         b = W_["bias"]
 
@@ -235,11 +93,10 @@ def ffnn2graph(G, params):
 
 def mod_eff(G):
     Gu = G.to_undirected()
-    #mod = nx.community.modularity(Gu, nx.community.louvain_communities(Gu, seed=123, resolution=1.25))
     mods = []
     seeds = [120,121,122,123,124,125,126,127,128,129]
     for seed in seeds:
-        mod = nx.community.modularity(Gu, nx.community.louvain_communities(Gu, seed=seed, weight=None), weight=None)#, resolution=1.25))
+        mod = nx.community.modularity(Gu, nx.community.louvain_communities(Gu, seed=seed, weight=None), weight=None)
         mods.append(mod)
     mod = np.mean(mods)
     glob_eff = nx.global_efficiency(Gu)
@@ -252,71 +109,12 @@ def get_nc(G):
     G.remove_nodes_from(nodes_to_remove)
     mod, glob_eff = mod_eff(G)
     nc = min(mod,glob_eff)/max(mod,glob_eff)
-    #nc = 1-abs(mod-glob_eff)
-    #print("mod: ", mod, ", eff: ", glob_eff, " nc: ", nc)
     return nc, mod, glob_eff
 
 def get_ns(G, input_len=243):
     return G.number_of_nodes()-input_len+G.number_of_edges()
 
-def make_graph_lamarckian(genome, config):
-    #pruned = genome.get_pruned_copy(config.genome_config)
-    G = nx.DiGraph()
-
-    for node in genome.nodes.keys():
-        bias = genome.nodes[node].bias
-        bias_critic = genome.nodes[node].bias_critic
-        activation = genome.nodes[node].activation
-        G.add_node(node, bias=bias, bias_critic=bias_critic, activation=activation)
-    for k in genome.connections.keys():
-        enabled = genome.connections[k].enabled
-        #print('G.add_edge(',k[0], ',', k[1],')')
-        if enabled:
-            weight = genome.connections[k].weight
-            weight_critic = genome.connections[k].weight_critic
-            G.add_edge(k[0], k[1], weight=weight, weight_critic=weight_critic)
-    
-    # remove any outgoing connections from output nodes
-    for n in range(5):
-        try:
-            l = list(G.out_edges(n))
-            G.remove_edges_from(l)
-        except:
-            continue
-    # remove extra input nodes
-    for n in list(G.nodes):
-        if n > 0 and not G.in_edges(n):
-            G.remove_node(n)
-    # remove extra output nodes
-    G = remove_extra_outputs(G)
-
-    return G
-
-def check3(G):
-    problem = True
-    while problem:
-        problem = False
-        for n in list(G.nodes):
-            #check if any output nodes have outgoing connections
-            if n > 0 and n < 5 and G.out_edges(n):
-                print("output node has out edges")
-            # check for any extra input nodes
-            if n > 5 and not G.in_edges(n):
-                print("extra input node: ", n, G.out_edges(n))
-                G.remove_node(n)
-                problem = True
-                break
-            # check for any extra output nodes
-            if n > 5 and not G.out_edges(n):
-                #print("extra out node: ", n)
-                G.remove_node(n)
-                problem = True
-                break
-    #print("done checking")
-    return G
-
 def make_graph(genome, config, input_size):
-    #pruned = genome.get_pruned_copy(config.genome_config)
     G = nx.DiGraph()
 
     for node in genome.nodes.keys():
@@ -325,28 +123,9 @@ def make_graph(genome, config, input_size):
         G.add_node(node, bias=bias, activation=activation)
     for k in genome.connections.keys():
         enabled = genome.connections[k].enabled
-        #print('G.add_edge(',k[0], ',', k[1],')')
         if enabled:
             weight = genome.connections[k].weight
             G.add_edge(k[0], k[1], weight=weight)
-    
-    '''
-    # remove any outgoing connections from output nodes
-    for n in range(5):
-        try:
-            l = list(G.out_edges(n))
-            G.remove_edges_from(l)
-        except:
-            continue
-    # remove extra input nodes
-    for n in list(G.nodes):
-        if n > 0 and not G.in_edges(n):
-            G.remove_node(n)
-    # remove extra output nodes
-    G = remove_extra_outputs(G)
-    '''
-
-    #G = check3(G)
 
     # ensure correct input size
     for n in range(-1*input_size,0):
