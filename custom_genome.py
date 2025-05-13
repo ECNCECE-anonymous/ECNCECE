@@ -1,10 +1,7 @@
 import random
 import neat
 import math
-import utils
-
 import copy
-#import networkx as nx
 
 from neat.genome import DefaultGenomeConfig
 from neat.config import ConfigParameter
@@ -12,8 +9,6 @@ from neat.activations import ActivationFunctionSet
 from neat.aggregations import AggregationFunctionSet
 from neat.genes import DefaultConnectionGene, DefaultNodeGene
 from neat.graphs import creates_cycle
-
-random.seed(10301)
 
 class CustomGenomeConfig(DefaultGenomeConfig):
     def __init__(self, params):
@@ -50,7 +45,7 @@ class CustomGenomeConfig(DefaultGenomeConfig):
                         ConfigParameter('mutate_lr_schedule', float),
         ]
         
-                # Gather configuration data from the gene classes.
+        # Gather configuration data from the gene classes.
         self.node_gene_type = params['node_gene_type']
         self._params += self.node_gene_type.get_config_params()
         self.connection_gene_type = params['connection_gene_type']
@@ -97,6 +92,9 @@ class CustomGenomeConfig(DefaultGenomeConfig):
         self.node_indexer = None
 
 class CustomGenome(neat.DefaultGenome):
+
+    def set_seed(seed):
+        random.seed(seed)
     
     @classmethod
     def parse_config(cls, param_dict):
@@ -121,52 +119,9 @@ class CustomGenome(neat.DefaultGenome):
         self.activation_fn = None
         self.lr_schedule = None
 
-    ''' 
-    def compute_full_connections(self, config, direct):
-        """
-        Compute connections for a fully-connected feed-forward genome--each
-        input connected to all hidden nodes
-        (and output nodes if ``direct`` is set or there are no hidden nodes),
-        each hidden node connected to all output nodes.
-        (Recurrent genomes will also include node self-connections.)
-        """
-        hidden = [i for i in self.nodes if i not in config.output_keys]
-        output = [i for i in self.nodes if i in config.output_keys]
-        connections = []
-        hsize = int(config.num_hidden/2)
-        hidden1 = hidden[:hsize]
-        hidden2 = hidden[hsize:]
-        if hidden:
-            for input_id in config.input_keys:
-                for h1 in hidden1:
-                    connections.append((input_id, h1))
-            for h1 in hidden1:
-                for h2 in hidden2:
-                    connections.append((h1, h2))
-            for h2 in hidden2:
-                for output_id in output:
-                    connections.append((h2, output_id))
-        if direct or (not hidden):
-            for input_id in config.input_keys:
-                for output_id in output:
-                    connections.append((input_id, output_id))
-
-        # For recurrent genomes, include node self-connections.
-        if not config.feed_forward:
-            for i in self.nodes:
-                connections.append((i, i))
-
-        return connections
-    '''
-
 
     def configure_new(self, config):
         super().configure_new(config)
-        #self.graph = utils.make_graph(self, config)
-        #self.graph_critic = utils.make_graph(self, config)
-        #self.nc = utils.get_nc(self.graph)
-        #self.ns = utils.get_ns(self.graph)
-        #self.discount = 0.01 + 0.98 * random.random()
 
         self.batch_size = random.choice([8, 16, 32, 64, 128, 256, 512])
         self.n_steps = random.choice([8, 16, 32, 64, 128, 256, 512, 1024, 2048])
@@ -183,7 +138,6 @@ class CustomGenome(neat.DefaultGenome):
         if self.batch_size > self.n_steps:
             self.batch_size = self.n_steps
 
-        #self.num_hidden = random.choice([0,8,16,32,64,128,256])
         self.activation_fn = random.choice(["tanh", "relu"])
         self.lr_schedule =random.choice(['linear', 'constant'])
         
@@ -191,10 +145,6 @@ class CustomGenome(neat.DefaultGenome):
 
     def configure_crossover(self, genome1, genome2, config):
         super().configure_crossover(genome1, genome2, config)
-        #self.graph = utils.make_graph(self, config)
-        #self.nc = utils.get_nc(self.graph)
-        #self.ns = utils.get_ns(self.graph)
-        #self.discount = random.choice((genome1.discount, genome2.discount))
         self.batch_size = random.choice((genome1.batch_size, genome2.batch_size))
         self.n_steps = random.choice((genome1.n_steps, genome2.n_steps))
         self.gamma = random.choice((genome1.gamma, genome2.gamma))
@@ -207,27 +157,11 @@ class CustomGenome(neat.DefaultGenome):
         self.vf_coef = random.choice((genome1.vf_coef, genome2.vf_coef))
         self.activation_fn = random.choice((genome1.activation_fn, genome2.activation_fn))
         self.lr_schedule = random.choice((genome1.lr_schedule, genome2.lr_schedule))
-        #chosen_graph = random.choice((genome1.graph_critic, genome2.graph_critic))
-        #print(list(nx.get_node_attributes(chosen_graph, "bias")))
-        #bias = (nx.get_node_attributes(chosen_graph, "bias"))
-        #print(bias[0])
-        #self.graph_critic = copy.deepcopy(chosen_graph)
-        #bias = (nx.get_node_attributes(self.graph_critic, "bias"))
-        #print(bias[0])
-        #utils.show_layered_graph(self.graph_critic)
 
 
     def mutate(self, config):
         super().mutate(config)
-        #self.graph = utils.make_graph(self, config)
-        #self.mutate_(config)
 
-        #self.graph = utils.make_graph(self, config)
-        #self.nc = utils.get_nc(self.graph)
-        #self.ns = utils.get_ns(self.graph)
-        #self.discount += random.gauss(0.0, 0.05)
-        #self.discount = max(0.01, min(0.99, self.discount))
-        #r = 0.3
         if random.random() < config.mutate_batch_size:
             self.batch_size = random.choice([8, 16, 32, 64, 128, 256, 512])
         if random.random() < config.mutate_n_steps:
@@ -261,14 +195,8 @@ class CustomGenome(neat.DefaultGenome):
             random.choice(['linear', 'constant'])
 
     def mutate_add_node(self, config):
-        '''
-        if not self.connections:
-            if config.check_structural_mutation_surer():
-                self.mutate_add_connection(config)
-            return
-        '''
-
-
+        
+        # new node adds two new connections to it, instead of splitting existing connection
         conn_to_split = self.mutate_add_connection(config)
 
         if not conn_to_split:
@@ -332,16 +260,11 @@ class CustomGenome(neat.DefaultGenome):
         new_genome = neat.DefaultGenome(None)
         new_genome.nodes = used_node_genes
         new_genome.connections = used_connection_genes
-        #print("layers:")
-        #layers = neat.graphs.feed_forward_layers(genome_config.input_keys, genome_config.output_keys, self.connections)
-        #print(layers)
         return new_genome
 
 def get_pruned_genes(node_genes, connection_genes, input_keys, output_keys):
-    #print("output keys: ", output_keys)
 
     used_nodes = required_for_output(input_keys, output_keys, connection_genes)
-    #print()
     used_pins = used_nodes.union(input_keys)
 
     # Copy used nodes into a new genome.
@@ -402,6 +325,5 @@ def required_for_output(inputs, outputs, connections):
     # Step 3: Filter required nodes to include only those reachable from inputs
     required = required.intersection(reachable_from_inputs)
     #required = required.intersection(reachable_from_inputs).union(outputs)
-    #print("required: ", required)
     return required
 
