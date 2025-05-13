@@ -1,38 +1,27 @@
-#import math
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
-#from jax.nn.initializers import he_uniform, uniform, kaiming_uniform
-#from jax import jit
 import numpy as np
-#from forward.models import ForWard as fwd
+
 from stable_baselines3.common.evaluation import evaluate_policy
 from matplotlib import pyplot as plt
-#import utils
 
 import networkx as nx
 from sbx import PPO
 
 from dataclasses import field
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
-
 from typing import (
   Any,
 )
 from collections.abc import Iterable, Sequence
-
 import jax
 import jax.numpy as jnp
 import numpy as np
 from jax import eval_shape, lax
 from jax.core import ShapedArray
-
-#import opt_einsum
-
-#from flax.core import meta
 from flax.linen import initializers
 from flax.linen.dtypes import promote_dtype
-#from flax.linen import module
 from flax.linen.module import Module, compact
 from flax.typing import (
   Array,
@@ -68,10 +57,8 @@ def build_model(env, graph, lr=0.0009, gamma = 0.9, v=0, seed=None, sort_graph=F
         Policy = "MlpPolicy"
     else:
         Policy = CustomPPOPolicy
-        #Policy.graph = G
         ffnn = Graph2ffnn(graph)
         Policy.ffnn = ffnn
-        #Policy.activation_fn = activation_fn
     
     policy_kwargs = dict(activation_fn=activation_fn)
     model = PPO(Policy, env, verbose=v, batch_size=batch_size, n_steps=n_steps, gamma=gamma, learning_rate=lr, 
@@ -95,7 +82,7 @@ def g2nn(G):
         G.remove_edges_from(l)
 
     Gs = nx.convert_node_labels_to_integers(G, first_label=0, ordering='default', label_attribute="old_label")
-    return Gs#ForWard(Gs)
+    return Gs
 
 
 class ForWard(nn.Module):
@@ -104,15 +91,11 @@ class ForWard(nn.Module):
     activation_fn: Callable[[jnp.ndarray], jnp.ndarray] = nn.tanh
 
     def setup(self):
-        #ffnn = Graph2ffnn(self.graph)#, bias=False)#, seed=1361)
+
         ffnn = self.ffnn
-        #dag, in_features, out_features, L, sources, sinks, bias, layer_preds, weights, masks = utils.graph2ffnn(self.graph)
-
         self.flatten = Flatten()
-
         self.in_features = ffnn.in_features
         self.sources = ffnn.sources
-        #self.dag = ffnn.dag
         self.layer_preds = ffnn.layer_preds
         self.L = ffnn.L
         self.out_features = ffnn.out_features
@@ -121,35 +104,20 @@ class ForWard(nn.Module):
    
         weights = []
         biases = []
-        #print(nx.get_node_attributes(ffnn.dag, "bias"))
         for i, (layer, preds, w) in enumerate(zip(self.L[1:], ffnn.layer_preds, ffnn.weights)):
-            #print(preds)
-            #print(layer)
-            #print()
-            W = w #.detach().numpy()
+            W = w
             b = []
             for j, v in enumerate(layer):
                 b.append(ffnn.dag.nodes[v]["bias"])
-                #print(b)
                 for pred in ffnn.dag.predecessors(v):
                     weight = ffnn.dag[pred][v]["weight"]
-                    #if weight != W[preds.index(pred),j]:
-                    #    print(weight, W[preds.index(pred),j])
                     W[preds.index(pred),j] = weight
             W = jnp.array(W)
             b = jnp.array(b)
             weights.append(W)
             biases.append(b)
-        #utils.show_layered_graph(ffnn.dag)
-        '''
-        print()
-        print(nx.get_edge_attributes(ffnn.dag, "weight"))
-        print(weights)
-        utils.show_layered_graph(ffnn.dag)
-        '''
 
         masks = []
-        #weights = []
         for i, (w, m) in enumerate(zip(weights, ffnn.masks)):
             M = jnp.array(m)#m.detach().numpy())
             self.variable('mask', f'M{i+1}', lambda : M)
@@ -172,16 +140,12 @@ class ForWard(nn.Module):
 
         self.denseLayers = denseLayers
 
-        #del ffnn
-        #del self.graph
-
     def __call__(self, x, deterministic=True):
         if x.shape[1] != self.in_features:
             raise RuntimeError(f'The model expects {self.in_features} input features, layers: {self.L}')
         
-        activations = jnp.zeros((x.shape[0], self.num_nodes)) #TODO why x.shape[0]?
+        activations = jnp.zeros((x.shape[0], self.num_nodes))
         activations = activations.at[:, self.sources].set(x)
-        #print("bam: call")
 
         
         for i, (layer, preds, dense, M, W, b) in enumerate(zip(self.L[1:], self.layer_preds, self.denseLayers, self.masks, self.weights, self.biases)):
@@ -189,19 +153,7 @@ class ForWard(nn.Module):
                 out = dense(activations[:, preds])
                 return out
             out = dense(activations[:, preds], M, W, b)
-            '''
-            dropout_layer = self.dropout if not deterministic else lambda x: x
-            out = jnp.matmul(
-                jnp.concatenate([
-                    dropout_layer(activations[:, preds]),
-                    jnp.ones((x.shape[0], 1)) if self.bias else jnp.ones((x.shape[0], 0))
-                ], axis=1),
-                M * W
-            )
-            '''
-            #out = nn.relu(out)
             if i + 2 < len(self.L):
-                #out = nn.tanh(out)#nn.relu(out)
                 out = self.activation_fn(out)
 
             activations = activations.at[:, layer].set(out)
@@ -281,10 +233,8 @@ class Critic(nn.Module):
     activation_fn: Callable[[jnp.ndarray], jnp.ndarray] = nn.tanh
 
     def setup(self):
-        #print("bam: G", G)
         self.flatten = Flatten()
         self.fwd = ForWard(critic=True, ffnn=self.ffnn, activation_fn=self.activation_fn) #TODO uncomment
-        #del self.graph
         self.dense = nn.Dense(1)
 
     #@nn.compact
@@ -321,10 +271,9 @@ class Actor(nn.Module):
     def setup(self):
         self.flatten = Flatten()
         self.fwd = ForWard(ffnn=self.ffnn, activation_fn=self.activation_fn)
-        #del self.graph
 
     #@nn.compact
-    def __call__(self, x: jnp.ndarray) -> tfd.Distribution:  # type: ignore[name-defined]
+    def __call__(self, x: jnp.ndarray) -> tfd.Distribution: 
         x = self.flatten(x)
         action_logits = self.fwd(x)
 
@@ -358,8 +307,6 @@ class Actor(nn.Module):
                 tfp.distributions.Categorical(logits=logits_padded), reinterpreted_batch_ndims=1
             )
         return dist
-        
-        #return x
 
 
 class CustomPPOPolicy(BaseJaxPolicy):
