@@ -59,28 +59,15 @@ class MyEnv(gym.Env):
         self.col_var = col_var
         self.energy_coef = energy_coef
 
-        '''
-        green = [0,0.8,0]
-        red = [0.8,0,0]
-        yellow = [0.8,0.8,0]
-        blue= [0,0,0.8]
-        orange = [0.8,0.65,0]
-        purple = [0.5, 0, 0.5]
-        brown = [0.4, 0.2, 0.0]
-        pink = [0.8, 0.4, 0.8]
-        '''
-
         green = [0.1,0.8,0.1]
         red = [0.8,0.1,0.1]
         yellow = [0.8,0.8,0.1]
         blue= [0.1,0.1,0.8]
-        #orange = [0.8,0.65,0]
         orange = [245/255, 130/255, 48/255]
         purple = [0.4, 0.1, 0.4]
         brown = [0.4, 0.2, 0.1]
         pink = [0.8, 0.2, 0.7]
 
-        #colours = [green, red, yellow, blue, orange, purple, brown, pink]
         colours = [green, yellow, orange, blue, red, blue, purple, pink]
 
         if col_seed:
@@ -89,9 +76,6 @@ class MyEnv(gym.Env):
 
         self.edibles = colours[:4]
         self.poisons = colours[4:]
-
-        #self.edibles = [green, yellow, orange, brown]
-        #self.poisons = [red, blue, purple, pink]
 
         self.col_dist = col_dist
         self.text = "Reward: "
@@ -124,11 +108,9 @@ class MyEnv(gym.Env):
     
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        #new_state = random.uniform(key, shape=(4,))
         edible_rgb, poison_rgb = self.edibles[0], self.poisons[0]
         scene, red_scene, green_scene, blue_scene = self._generate_scenes(edible_rgb, poison_rgb)
         # Random agent location within the grid
-        #agent_location = jax.random.randint(key, shape=(2,), minval=0, maxval=self.size)
         agent_location = self.np_random.integers(low=0, high=self.size, size=(2,))
         new_state = State(
                 agent_location=agent_location,
@@ -160,7 +142,6 @@ class MyEnv(gym.Env):
             updated_red_scene = state.red_scene
             updated_green_scene = state.green_scene
             updated_blue_scene = state.blue_scene
-            #reward = -0.01
 
         reward = reward - (self.ns * self.energy_coef)
 
@@ -238,9 +219,6 @@ class MyEnv(gym.Env):
         state = self.state
         x, y = state.agent_location[0], state.agent_location[1]
         val = state.scene[x,y]
-        #reward = -0.1
-
-        #updated_reward = jax.lax.cond(val == EDIBLE, lambda: 1.0, lambda: -1.0,)
         
         if val == EDIBLE:
             updated_reward = 1.0
@@ -275,8 +253,6 @@ class MyEnv(gym.Env):
     
     def render(self):
         return self._render_frame()
-        #if self.render_mode == "rgb_array":
-        #    return self._render_frame()
 
     def _render_frame(self):
         state = self.state
@@ -296,7 +272,6 @@ class MyEnv(gym.Env):
 
         for i in range(self.size):
             for j in range(self.size):
-                #print(255*self.red_scene[i,j])
                 pygame.draw.rect(canvas,(255*state.red_scene[i,j], 255*state.green_scene[i,j], 255*state.blue_scene[i,j]),
                                      pygame.Rect(pix_square_size * np.array([i,j]),(pix_square_size, pix_square_size),),)
                 
@@ -351,10 +326,6 @@ class MyEnv(gym.Env):
     
 
 def testEnv():
-    #env = MyEnv6(n_seasons=1, lifetime=10, render_mode="human", random_colour=True)
-    #env = MyEnv7(n_seasons=4, render_mode="human")#, shock_obs=False, render_mode="human", size=10, loc=True)#, regenerate=False, colour_dist=True)#, random_colour=True)#, n_edibles=15, n_poisons=15, random_colour=True)#4, lifetime=100, render_mode="human")
-    #from gymnasium.experimental.wrappers import JaxToNumpyV0
-    #import numpy as np
     env = MyEnv(n_seasons=4, col_dist=True, col_seed=10953)
     observation, info = env.reset(1361)
     all_episode_rewards = []
@@ -363,7 +334,6 @@ def testEnv():
     print(env.edibles)
     print("poisons")
     print(env.poisons)
-    #env = JaxToNumpyV0(env)
     ''' 
     for i in range(1):
         print(i)
@@ -388,13 +358,11 @@ def testEnv():
     env.close()
     '''
 def test_agent():
-    #from gymnasium.wrappers import JaxToNumpy
-    #from gymnasium.experimental.wrappers import JaxToNumpyV0
+
     from sbx import PPO
     #from stable_baselines3 import PPO
     from stable_baselines3.common.env_checker import check_env
     from stable_baselines3.common.evaluation import evaluate_policy
-    #env = JaxToNumpyV0(env)
 
     env = MyEnv(n_seasons=4, col_dist=True)
     check_env(env, warn=True, skip_render_check=True)
@@ -411,9 +379,5 @@ def test_agent():
     #evaluate_policy(model, env, n_eval_episodes=1, deterministic=False, render=True)
     return mean_reward,  std_reward
     
-
-#testEnv()
-#test_agent()
-
 if __name__ == '__main__':
     testEnv()
