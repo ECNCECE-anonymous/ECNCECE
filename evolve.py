@@ -95,7 +95,7 @@ def eval_genomes(genomes, config, learn=True, total_timesteps=100_000, skip_eval
 
 
 def run(config_file='neat_config_exp_v2', parallel=True, wandb_run=None, restore=False, checkpoint_file=None, n_seasons=4, 
-        seed=1361, n_gens=1, energy_costs=False):
+        seed=1361, n_gens=1, energy_costs=False, nprocs=3):
 
     if restore:
         checkpoint = neat.Checkpointer.restore_checkpoint(checkpoint_file)
@@ -128,7 +128,7 @@ def run(config_file='neat_config_exp_v2', parallel=True, wandb_run=None, restore
     p.add_reporter(checkpointer)
 
     if parallel:
-        pe = ParallelEvaluator(3, eval_genome, timeout=600, n_seasons=n_seasons, seed=seed, energy_costs=energy_costs)
+        pe = ParallelEvaluator(nprocs, eval_genome, timeout=600, n_seasons=n_seasons, seed=seed, energy_costs=energy_costs)
         gen_start = p.generation
         print("gen start: ", gen_start)
 
@@ -196,19 +196,23 @@ if __name__ == '__main__':
 
     # seed argument
     parser.add_argument('--seed', type=int, default=1361,
-                        help='seed value')
+                        help='Random seed for reproducibility (default: 1361)')
 
     # n_seasons argument
     parser.add_argument('--n_seasons', type=int, default=4,
-                        help='Number of seasons in environment')
+                        help='Number of seasons in the environment (default: 4)')
 
     # n_gens argument
     parser.add_argument('--n_gens', type=int, default=1,
-                        help='Number of Generations')
+                        help='Number of generations for evolution (default: 1)')
 
     # EC argument
-    parser.add_argument('--EC', action='store_true', help='Impose energy costs that scale with ANN size')
+    parser.add_argument('--EC', action='store_true',
+                        help='Enable energy costs that scale with ANN size')
 
+    # n_procs argument
+    parser.add_argument('--n_procs', type=int, default=3, 
+                        help='Number of parallel processes for evaluating population fitness (default: 3)')
 
     args = parser.parse_args()
     print("Argument values:")
@@ -216,5 +220,7 @@ if __name__ == '__main__':
     print("n_seasons: ", args.n_seasons)
     print("Generations: ", args.n_gens)
     print("Energy Costs: ", args.EC)
+    print("n_procs: ", args.n_procs)
+
                         
-    run(n_seasons=args.n_seasons, seed=args.seed, n_gens=args.n_gens, energy_costs=args.EC)
+    run(n_seasons=args.n_seasons, seed=args.seed, n_gens=args.n_gens, energy_costs=args.EC, n_procs=args.n_procs)
