@@ -23,6 +23,9 @@ pip install -r requirements.txt
 NEAT evolution parameters (including RL hyperparameter mutations) are defined in the NEAT configuration file: neat_config_exp_v2
 
 ## Running an Evolution
+> **Note:** Evolution runs can take a long time.  
+> The default setup uses a population of 150 individuals, each trained with reinforcement learning for 100,000 timesteps over 400 generations.
+
 To run a basic evolutionary experiment:
 ```bash
 python evolve.py
